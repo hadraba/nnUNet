@@ -7,6 +7,9 @@ from nnunetv2.configuration import default_num_processes
 from nnunetv2.paths import nnUNet_results
 from nnunetv2.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
 
+from nnunetv2 import paths
+from importlib import reload
+
 
 def convert_trainer_plans_config_to_identifier(trainer_name, plans_identifier, configuration):
     return f'{trainer_name}__{plans_identifier}__{configuration}'
@@ -19,6 +22,11 @@ def convert_identifier_to_trainer_plans_config(identifier: str):
 def get_output_folder(dataset_name_or_id: Union[str, int], trainer_name: str = 'nnUNetTrainer',
                       plans_identifier: str = 'nnUNetPlans', configuration: str = '3d_fullres',
                       fold: Union[str, int] = None) -> str:
+    
+    global nnUNet_results
+    reload(paths)
+    nnUNet_results = paths.nnUNet_results
+    
     tmp = join(nnUNet_results, maybe_convert_to_dataset_name(dataset_name_or_id),
                convert_trainer_plans_config_to_identifier(trainer_name, plans_identifier, configuration))
     if fold is not None:
@@ -39,10 +47,10 @@ def parse_dataset_trainer_plans_configuration_from_path(path: str):
         assert len(folders[:idx]) >= 2, 'Bad path, cannot extract what I need. Your path needs to be at least ' \
                                         'DatasetXXX/MODULE__PLANS__CONFIGURATION for this to work'
         if folders[idx - 2].startswith('Dataset'):
-            split = folders[idx - 1].split('__')
-            assert len(split) == 3, 'Bad path, cannot extract what I need. Your path needs to be at least ' \
+            splitted = folders[idx - 1].split('__')
+            assert len(splitted) == 3, 'Bad path, cannot extract what I need. Your path needs to be at least ' \
                                         'DatasetXXX/MODULE__PLANS__CONFIGURATION for this to work'
-            return folders[idx - 2], *split
+            return folders[idx - 2], *splitted
     else:
         # we can only check for dataset followed by a string that is separable into three strings by splitting with '__'
         # look for DatasetXXX
@@ -51,10 +59,10 @@ def parse_dataset_trainer_plans_configuration_from_path(path: str):
             idx = dataset_folder.index(True)
             assert len(folders) >= (idx + 1), 'Bad path, cannot extract what I need. Your path needs to be at least ' \
                                         'DatasetXXX/MODULE__PLANS__CONFIGURATION for this to work'
-            split = folders[idx + 1].split('__')
-            assert len(split) == 3, 'Bad path, cannot extract what I need. Your path needs to be at least ' \
+            splitted = folders[idx + 1].split('__')
+            assert len(splitted) == 3, 'Bad path, cannot extract what I need. Your path needs to be at least ' \
                                        'DatasetXXX/MODULE__PLANS__CONFIGURATION for this to work'
-            return folders[idx], *split
+            return folders[idx], *splitted
 
 
 def get_ensemble_name(model1_folder, model2_folder, folds: Tuple[int, ...]):
