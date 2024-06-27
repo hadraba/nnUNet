@@ -98,8 +98,18 @@ class nnUNetPredictor(object):
         num_input_channels = determine_num_input_channels(plans_manager, configuration_manager, dataset_json)
         trainer_class = recursive_find_python_class(join(nnunetv2.__path__[0], "training", "nnUNetTrainer"),
                                                     trainer_name, 'nnunetv2.training.nnUNetTrainer')
-        network = trainer_class.build_network_architecture(plans_manager, dataset_json, configuration_manager,
-                                                           num_input_channels, enable_deep_supervision=False)
+        if trainer_class is None:
+            raise RuntimeError(f'Unable to locate trainer class {trainer_name} in nnunetv2.training.nnUNetTrainer. '
+                               f'Please place it there (in any .py file)!')
+        network = trainer_class.build_network_architecture(
+            configuration_manager.network_arch_class_name,
+            configuration_manager.network_arch_init_kwargs,
+            configuration_manager.network_arch_init_kwargs_req_import,
+            num_input_channels,
+            plans_manager.get_label_manager(dataset_json).num_segmentation_heads,
+            enable_deep_supervision=False
+        )
+
         self.plans_manager = plans_manager
         self.configuration_manager = configuration_manager
         self.list_of_parameters = parameters
@@ -110,7 +120,7 @@ class nnUNetPredictor(object):
         self.label_manager = plans_manager.get_label_manager(dataset_json)
         if ('nnUNet_compile' in os.environ.keys()) and (os.environ['nnUNet_compile'].lower() in ('true', '1', 't')) \
                 and not isinstance(self.network, OptimizedModule):
-            print('compiling network')
+            print('Using torch.compile')
             self.network = torch.compile(self.network)
 
     def manual_initialization(self, network: nn.Module, plans_manager: PlansManager,
@@ -245,7 +255,6 @@ class nnUNetPredictor(object):
                                                                                  seg_from_prev_stage_files,
                                                                                  output_filename_truncated,
                                                                                  num_processes_preprocessing)
-        print("ARE WE HERE")
         return self.predict_from_data_iterator(data_iterator, save_probabilities, num_processes_segmentation_export)
 
     def _internal_get_data_iterator_from_lists_of_filenames(self,
