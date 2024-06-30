@@ -163,7 +163,8 @@ class nnUNetPredictor(object):
                                        overwrite: bool = True,
                                        part_id: int = 0,
                                        num_parts: int = 1,
-                                       save_probabilities: bool = False):
+                                       save_probabilities: bool = False,
+                                       task = None):
         if isinstance(list_of_lists_or_source_folder, str):
             list_of_lists_or_source_folder = create_lists_from_splitted_dataset_folder(list_of_lists_or_source_folder,
                                                                                        self.dataset_json['file_ending'])
@@ -174,7 +175,7 @@ class nnUNetPredictor(object):
         print(
             f'I am process {part_id} out of {num_parts} (max process ID is {num_parts - 1}, we start counting with 0!)')
         print(f'There are {len(caseids)} cases that I would like to predict')
-
+        task.update(message = f"There are {len(caseids)} cases to predict…")
         if isinstance(output_folder_or_list_of_truncated_output_files, str):
             output_filename_truncated = [join(output_folder_or_list_of_truncated_output_files, i) for i in caseids]
         else:
@@ -206,7 +207,7 @@ class nnUNetPredictor(object):
                            num_processes_segmentation_export: int = default_num_processes,
                            folder_with_segs_from_prev_stage: str = None,
                            num_parts: int = 1,
-                           part_id: int = 0):
+                           part_id: int = 0, task = None):
         """
         This is nnU-Net's default function for making predictions. It works best for batch predictions
         (predicting many images at once).
@@ -217,7 +218,6 @@ class nnUNetPredictor(object):
             output_folder = os.path.dirname(output_folder_or_list_of_truncated_output_files[0])
         else:
             output_folder = None
-        print("output_folder: " + output_folder)
         ########################
         # let's store the input arguments so that its clear what was used to generate the prediction
         if output_folder is not None:
@@ -228,6 +228,7 @@ class nnUNetPredictor(object):
                 my_init_kwargs)  # let's not unintentionally change anything in-place. Take this as a
             recursive_fix_for_json_export(my_init_kwargs)
             maybe_mkdir_p(output_folder)
+            del my_init_kwargs['task']
             save_json(my_init_kwargs, join(output_folder, 'predict_from_raw_data_args.json'))
 
             # we need these two if we want to do things with the predictions like for example apply postprocessing
@@ -247,7 +248,7 @@ class nnUNetPredictor(object):
             self._manage_input_and_output_lists(list_of_lists_or_source_folder,
                                                 output_folder_or_list_of_truncated_output_files,
                                                 folder_with_segs_from_prev_stage, overwrite, part_id, num_parts,
-                                                save_probabilities)
+                                                save_probabilities, task=task)
         if len(list_of_lists_or_source_folder) == 0:
             return
 
@@ -255,7 +256,7 @@ class nnUNetPredictor(object):
                                                                                  seg_from_prev_stage_files,
                                                                                  output_filename_truncated,
                                                                                  num_processes_preprocessing)
-        return self.predict_from_data_iterator(data_iterator, save_probabilities, num_processes_segmentation_export)
+        return self.predict_from_data_iterator(data_iterator, save_probabilities, num_processes_segmentation_export, task=task)
 
     def _internal_get_data_iterator_from_lists_of_filenames(self,
                                                             input_list_of_lists: List[List[str]],
@@ -340,7 +341,7 @@ class nnUNetPredictor(object):
     def predict_from_data_iterator(self,
                                    data_iterator,
                                    save_probabilities: bool = False,
-                                   num_processes_segmentation_export: int = default_num_processes):
+                                   num_processes_segmentation_export: int = default_num_processes, task = None):
         """
         each element returned by data_iterator must be a dict with 'data', 'ofile' and 'data_properties' keys!
         If 'ofile' is None, the result will be returned instead of written to a file
@@ -357,6 +358,7 @@ class nnUNetPredictor(object):
 
                 ofile = preprocessed['ofile']
                 if ofile is not None:
+                    task.update(message = f"Predicting {os.path.basename(ofile)}…")
                     print(f'\nPredicting {os.path.basename(ofile)}:')
                 else:
                     print(f'\nPredicting image of shape {data.shape}:')
@@ -372,7 +374,6 @@ class nnUNetPredictor(object):
                     # print('sleeping')
                     sleep(0.1)
                     proceed = not check_workers_alive_and_busy(export_pool, worker_list, r, allowed_num_queued=2)
-
                 prediction = self.predict_logits_from_preprocessed_data(data).cpu()
 
                 if ofile is not None:
@@ -738,7 +739,7 @@ def predict_entry_point_modelfolder():
                                  num_parts=1, part_id=0)
 
 
-def predict_entry_point():
+def predict_entry_point(task):
     import argparse
     parser = argparse.ArgumentParser(description='Use this to run inference with nnU-Net. This function is used when '
                                                  'you want to manually specify a folder containing a trained nnU-Net '
@@ -819,17 +820,20 @@ def predict_entry_point():
     assert args.device in ['cpu', 'cuda',
                            'mps'], f'-device must be either cpu, mps or cuda. Other devices are not tested/supported. Got: {args.device}.'
     if args.device == 'cpu':
+        task.update(message = "Segmenting on CPU…")
         # let's allow torch to use hella threads
         import multiprocessing
         torch.set_num_threads(multiprocessing.cpu_count())
         device = torch.device('cpu')
     elif args.device == 'cuda':
+        task.update(message = "Segmenting on GPU…")
         # multithreading in torch doesn't help nnU-Net if run on GPU
         torch.set_num_threads(1)
         if torch.get_num_interop_threads() != 1:
             torch.set_num_interop_threads(1)
         device = torch.device('cuda')
     else:
+        task.update(message = "Segmenting on MPS…")
         device = torch.device('mps')
     predictor = nnUNetPredictor(tile_step_size=args.step_size,
                                 use_gaussian=True,
@@ -849,7 +853,8 @@ def predict_entry_point():
                                  num_processes_segmentation_export=args.nps,
                                  folder_with_segs_from_prev_stage=args.prev_stage_predictions,
                                  num_parts=args.num_parts,
-                                 part_id=args.part_id)
+                                 part_id=args.part_id,
+                                 task=task)
     # r = predict_from_raw_data(args.i,
     #                           args.o,
     #                           model_folder,
