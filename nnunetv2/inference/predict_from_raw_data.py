@@ -33,6 +33,7 @@ from nnunetv2.utilities.label_handling.label_handling import determine_num_input
 from nnunetv2.utilities.plans_handling.plans_handler import PlansManager, ConfigurationManager
 from nnunetv2.utilities.utils import create_lists_from_splitted_dataset_folder
 
+#EDITED 30.6.2024 – Test
 
 class nnUNetPredictor(object):
     def __init__(self,
