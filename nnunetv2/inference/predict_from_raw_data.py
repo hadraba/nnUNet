@@ -665,7 +665,7 @@ class nnUNetPredictor(object):
 
                 slicers = self._internal_get_sliding_window_slicers(data.shape[1:])
 
-                if self.perform_everything_on_device and self.device != 'cpu':
+                if self.perform_everything_on_gpu and self.device != 'cpu':
                     # we need to try except here because we can run OOM in which case we need to fall back to CPU as a results device
                     try:
                         predicted_logits = self._internal_predict_sliding_window_return_logits(data, slicers,
@@ -677,7 +677,7 @@ class nnUNetPredictor(object):
                         predicted_logits = self._internal_predict_sliding_window_return_logits(data, slicers, False)
                 else:
                     predicted_logits = self._internal_predict_sliding_window_return_logits(data, slicers,
-                                                                                           self.perform_everything_on_device)
+                                                                                           self.perform_everything_on_gpu)
 
                 empty_cache(self.device)
                 # revert padding
