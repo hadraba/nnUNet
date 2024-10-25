@@ -362,6 +362,7 @@ class nnUNetPredictor(object):
                     task.update(message = f"Predicting {os.path.basename(ofile)}…")
                     print(f'\nPredicting {os.path.basename(ofile)}:')
                 else:
+                    task.update(message = f"Predicting {data.shape}…")
                     print(f'\nPredicting image of shape {data.shape}:')
 
                 print(f'perform_everything_on_gpu: {self.perform_everything_on_gpu}')
