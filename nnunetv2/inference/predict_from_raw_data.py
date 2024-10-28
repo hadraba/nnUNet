@@ -669,7 +669,7 @@ class nnUNetPredictor(object):
                     # we need to try except here because we can run OOM in which case we need to fall back to CPU as a results device
                     try:
                         predicted_logits = self._internal_predict_sliding_window_return_logits(data, slicers,
-                                                                                               self.perform_everything_on_device)
+                                                                                               self.perform_everything_on_gpu)
                     except RuntimeError:
                         print(
                             'Prediction on device was unsuccessful, probably due to a lack of memory. Moving results arrays to CPU')
