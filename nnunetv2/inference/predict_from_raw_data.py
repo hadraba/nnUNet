@@ -176,7 +176,7 @@ class nnUNetPredictor(object):
         print(
             f'I am process {part_id} out of {num_parts} (max process ID is {num_parts - 1}, we start counting with 0!)')
         print(f'There are {len(caseids)} cases that I would like to predict')
-        task.update(message = f"There are {len(caseids)} cases to predict…")
+        #task.update(message = f"There are {len(caseids)} cases to predict…")
         if isinstance(output_folder_or_list_of_truncated_output_files, str):
             output_filename_truncated = [join(output_folder_or_list_of_truncated_output_files, i) for i in caseids]
         else:
@@ -359,10 +359,10 @@ class nnUNetPredictor(object):
 
                 ofile = preprocessed['ofile']
                 if ofile is not None:
-                    task.update(message = f"Predicting {os.path.basename(ofile)}…")
+                    #task.update(message = f"Predicting {os.path.basename(ofile)}…")
                     print(f'\nPredicting {os.path.basename(ofile)}:')
                 else:
-                    task.update(message = f"Predicting {data.shape}…")
+                    #task.update(message = f"Predicting {data.shape}…")
                     print(f'\nPredicting image of shape {data.shape}:')
 
                 print(f'perform_everything_on_gpu: {self.perform_everything_on_gpu}')
