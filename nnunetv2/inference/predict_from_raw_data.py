@@ -345,16 +345,24 @@ class nnUNetPredictor(object):
         each element returned by data_iterator must be a dict with 'data', 'ofile' and 'data_properties' keys!
         If 'ofile' is None, the result will be returned instead of written to a file
         """
+        print("BP Inside predict_from_data_iterator")
+        print("data_iterator")
+        print(data_iterator)
+        print("save_probabilities")
+        print(save_probabilities)
+        print("num_processes_segmentation_export")
+        print(num_processes_segmentation_export)
         with multiprocessing.get_context("spawn").Pool(num_processes_segmentation_export) as export_pool:
             worker_list = [i for i in export_pool._pool]
             r = []
             for preprocessed in data_iterator:
                 data = preprocessed['data']
+                print(data)
                 if isinstance(data, str):
                     delfile = data
                     data = torch.from_numpy(np.load(data))
                     os.remove(delfile)
-
+                print("OFILE")
                 ofile = preprocessed['ofile']
                 if ofile is not None:
                     print(f'\nPredicting {os.path.basename(ofile)}:')
@@ -408,13 +416,15 @@ class nnUNetPredictor(object):
                 else:
                     print(f'\nDone with image of shape {data.shape}:')
             ret = [i.get()[0] for i in r]
-
+        print("MULTIPROCESSING DONE")
         if isinstance(data_iterator, MultiThreadedAugmenter):
             data_iterator._finish()
 
         # clear lru cache
+        print("CLEAR CACHE")
         compute_gaussian.cache_clear()
         # clear device cache
+        print("CLEAR DEVICE CACHE")
         empty_cache(self.device)
         return ret
 
